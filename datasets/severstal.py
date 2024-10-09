@@ -16,7 +16,7 @@ from torchvision.transforms.transforms import Resize
 from datasets.utils import blend_image_segmentation
 from general_utils import get_from_repository
 
-COCO_CLASSES = {0: 'class_1', 1: 'class_3', 2: 'class_4', 3: 'class_2'}
+COCO_CLASSES = {0: 'class_1', 1: 'class_2', 2: 'class_3', 3: 'class_4'}
 
 
 class COCOWrapper(object):
