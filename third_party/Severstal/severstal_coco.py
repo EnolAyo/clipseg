@@ -1,20 +1,23 @@
 r""" COCO-20i few-shot semantic segmentation dataset """
 import os
-import pickle
+from pycocotools.coco import COCO
 
 from torch.utils.data import Dataset
 import torch.nn.functional as F
 import torch
 import PIL.Image as Image
 import numpy as np
-from pycocotools.coco import COCO
 
 
-class DatasetCOCOSeverstal(Dataset):
-    def __init__(self, datapath, transform, shot, use_original_imgsize):
-        self.nclass = 4
+class DatasetCOCO(Dataset):
+    def __init__(self, datapath, transform, split, use_original_imgsize):
+        self.split = 'val' if split in ['val', 'test'] else 'trn'
+        self.fold = fold
+        self.nfolds = 4
+        self.nclass = 80
         self.benchmark = 'coco'
         self.shot = shot
+        self.split_coco = split if split == 'val2014' else 'train2014'
         self.base_path = os.path.join(datapath, 'COCO2014')
         self.transform = transform
         self.use_original_imgsize = use_original_imgsize
@@ -24,7 +27,7 @@ class DatasetCOCOSeverstal(Dataset):
         self.img_metadata = self.build_img_metadata()
 
     def __len__(self):
-        return len(self.img_metadata)
+        return len(self.img_metadata) if self.split == 'trn' else 1000
 
     def __getitem__(self, idx):
         # ignores idx during training & testing and perform uniform sampling over object classes to form an episode
@@ -63,9 +66,8 @@ class DatasetCOCOSeverstal(Dataset):
         return class_ids
 
     def build_img_metadata_classwise(self):
-        coco = COCO("/home/eas/Enol/pycharm_projects/clipseg/third_party/severstal-steel-defect-detection/annotations_COCO.json")
-        imgIds = coco.getImgIds()
-        img_metadata_classwise = coco.loadAnns(imgIds) # List of dictionaries with metadata of each image
+        with open('./data/splits/coco/%s/fold%d.pkl' % (self.split, self.fold), 'rb') as f:
+            img_metadata_classwise = pickle.load(f)
         return img_metadata_classwise
 
     def build_img_metadata(self):
@@ -106,3 +108,4 @@ class DatasetCOCOSeverstal(Dataset):
             support_masks.append(support_mask)
 
         return query_img, query_mask, support_imgs, support_masks, query_name, support_names, class_sample, org_qry_imsize
+

@@ -4,7 +4,7 @@ import torch
 import numpy as np
 import os
 import json
-
+from pycocotools.coco import COCO
 from os.path import join, dirname, isdir, isfile, expanduser, realpath, basename
 from random import shuffle, seed as set_seed
 from PIL import Image
@@ -16,39 +16,30 @@ from torchvision.transforms.transforms import Resize
 from datasets.utils import blend_image_segmentation
 from general_utils import get_from_repository
 
-COCO_CLASSES = {0: 'person', 1: 'bicycle', 2: 'car', 3: 'motorcycle', 4: 'airplane', 5: 'bus', 6: 'train', 7: 'truck',
-                8: 'boat', 9: 'traffic light', 10: 'fire hydrant', 11: 'stop sign', 12: 'parking meter', 13: 'bench',
-                14: 'bird', 15: 'cat', 16: 'dog', 17: 'horse', 18: 'sheep', 19: 'cow', 20: 'elephant', 21: 'bear',
-                22: 'zebra', 23: 'giraffe', 24: 'backpack', 25: 'umbrella', 26: 'handbag', 27: 'tie', 28: 'suitcase',
-                29: 'frisbee', 30: 'skis', 31: 'snowboard', 32: 'sports ball', 33: 'kite', 34: 'baseball bat',
-                35: 'baseball glove', 36: 'skateboard', 37: 'surfboard', 38: 'tennis racket', 39: 'bottle',
-                40: 'wine glass', 41: 'cup', 42: 'fork', 43: 'knife', 44: 'spoon', 45: 'bowl', 46: 'banana',
-                47: 'apple', 48: 'sandwich', 49: 'orange', 50: 'broccoli', 51: 'carrot', 52: 'hot dog', 53: 'pizza',
-                54: 'donut', 55: 'cake', 56: 'chair', 57: 'couch', 58: 'potted plant', 59: 'bed', 60: 'dining table',
-                61: 'toilet', 62: 'tv', 63: 'laptop', 64: 'mouse', 65: 'remote', 66: 'keyboard', 67: 'cell phone',
-                68: 'microwave', 69: 'oven', 70: 'toaster', 71: 'sink', 72: 'refrigerator', 73: 'book', 74: 'clock',
-                75: 'vase', 76: 'scissors', 77: 'teddy bear', 78: 'hair drier', 79: 'toothbrush'}
+COCO_CLASSES = {0: 'class_1', 1: 'class_3', 2: 'class_4', 3: 'class_2'}
 
 
 class COCOWrapper(object):
 
-    def __init__(self, split, fold=0, image_size=400, aug=None, mask='separate', negative_prob=0,
+    def __init__(self, split, image_size=256, aug=None, mask='separate', negative_prob=0,
                  with_class_label=False):
         super().__init__()
 
         self.mask = mask
         self.with_class_label = with_class_label
         self.negative_prob = negative_prob
+        self.split = split
 
-        from third_party.hsnet.data.coco import DatasetCOCO
+        from third_party.Severstal.severstal_coco import DatasetCOCO
 
-        get_from_repository('COCO-20i', ['COCO-20i.tar'])
+        #get_from_repository('COCO-20i', ['COCO-20i.tar'])
 
-        foldpath = join(dirname(__file__), '../third_party/hsnet/data/splits/coco/%s/fold%d.pkl')
-
+        metadatapath = f'/home/eas/Enol/pycharm_projects/clipseg/third_party/Severstal/annotations_COCO_{split}.json'
+        datapath = '/home/eas/Enol/pycharm_projects/clipseg/third_party/Severstal/train_subimages'
         def build_img_metadata_classwise(self):
-            with open(foldpath % (self.split, self.fold), 'rb') as f:
-                img_metadata_classwise = pickle.load(f)
+            coco = COCO(metadatapath)
+            imgIds = coco.getImgIds()
+            img_metadata_classwise = coco.loadAnns(imgIds)
             return img_metadata_classwise
 
         DatasetCOCO.build_img_metadata_classwise = build_img_metadata_classwise
@@ -62,10 +53,10 @@ class COCOWrapper(object):
             transforms.Normalize(mean, std)
         ])
 
-        self.coco = DatasetCOCO(expanduser('~/datasets/COCO-20i/'), fold, transform, split, 1, False)
+        self.coco = DatasetCOCO(datapath, transform, split,False)
 
         self.all_classes = [self.coco.class_ids]
-        self.coco.base_path = join(expanduser('~/datasets/COCO-20i'))
+        self.coco.base_path = datapath
 
     def __len__(self):
         return len(self.coco)
