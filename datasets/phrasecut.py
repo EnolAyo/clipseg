@@ -131,14 +131,14 @@ class PhraseCut(object):
             ])
         else:
             self.aug_color = None
-
+        """
         get_from_repository('PhraseCut', ['PhraseCut.tar'], integrity_check=lambda local_dir: all([
             isdir(join(local_dir, 'VGPhraseCut_v0')),
             isdir(join(local_dir, 'VGPhraseCut_v0', 'images')),
             isfile(join(local_dir, 'VGPhraseCut_v0', 'refer_train.json')),
             len(os.listdir(join(local_dir, 'VGPhraseCut_v0', 'images'))) in {108250, 108249}
         ]))
-
+        """
         from third_party.PhraseCutDataset.utils.refvg_loader import RefVGLoader
         self.refvg_loader = RefVGLoader(split=split)
 
@@ -254,7 +254,7 @@ class PhraseCut(object):
 
         self.sample_ids = [self.sample_ids[i] for i in range(len(self.sample_ids)) if self.sizes[i] > min_size]
 
-        self.base_path = join(expanduser('~/datasets/PhraseCut/VGPhraseCut_v0/images/'))
+        self.base_path = join(expanduser('~/Enol/pycharm_projects/clipseg/third_party/PhraseCutDataset/data/VGPhraseCut_v0/images/'))
 
     def __len__(self):
         return len(self.sample_ids)
