@@ -34,7 +34,7 @@ class COCOWrapper(object):
 
         #get_from_repository('COCO-20i', ['COCO-20i.tar'])
 
-        metadatapath = f'/home/eas/Enol/pycharm_projects/clipseg/third_party/Severstal/annotations_COCO_{split}.json'
+        metadatapath = f'/home/eas/Enol/pycharm_projects/clipseg/third_party/Severstal/annotations_COCO_{self.split}.json'
         datapath = '/home/eas/Enol/pycharm_projects/clipseg/third_party/Severstal/train_subimages'
         def build_img_metadata_classwise(self):
             coco = COCO(metadatapath)

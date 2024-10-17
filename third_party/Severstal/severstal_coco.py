@@ -1,23 +1,20 @@
 r""" COCO-20i few-shot semantic segmentation dataset """
 import os
 from pycocotools.coco import COCO
-
+import pycocotools.mask as mask_util
 from torch.utils.data import Dataset
 import torch.nn.functional as F
 import torch
 import PIL.Image as Image
 import numpy as np
+import random
 
 
 class DatasetCOCO(Dataset):
     def __init__(self, datapath, transform, split, use_original_imgsize):
-        self.split = 'val' if split in ['val', 'test'] else 'trn'
-        self.fold = fold
-        self.nfolds = 4
-        self.nclass = 80
+        self.split = split
+        self.nclass = 4
         self.benchmark = 'coco'
-        self.shot = shot
-        self.split_coco = split if split == 'val2014' else 'train2014'
         self.base_path = os.path.join(datapath, 'COCO2014')
         self.transform = transform
         self.use_original_imgsize = use_original_imgsize
@@ -25,14 +22,17 @@ class DatasetCOCO(Dataset):
         self.class_ids = self.build_class_ids()
         self.img_metadata_classwise = self.build_img_metadata_classwise()
         self.img_metadata = self.build_img_metadata()
+        self.len = self.__len__()
+
+
 
     def __len__(self):
-        return len(self.img_metadata) if self.split == 'trn' else 1000
+        return len(self.img_metadata)
 
     def __getitem__(self, idx):
         # ignores idx during training & testing and perform uniform sampling over object classes to form an episode
         # (due to the large size of the COCO dataset)
-        query_img, query_mask, support_imgs, support_masks, query_name, support_names, class_sample, org_qry_imsize = self.load_frame()
+        query_img, query_mask, support_imgs, support_masks, query_name, support_names, class_sample, org_qry_imsize = self.load_frame(idx)
 
         query_img = self.transform(query_img)
         query_mask = query_mask.float()
@@ -66,9 +66,8 @@ class DatasetCOCO(Dataset):
         return class_ids
 
     def build_img_metadata_classwise(self):
-        with open('./data/splits/coco/%s/fold%d.pkl' % (self.split, self.fold), 'rb') as f:
-            img_metadata_classwise = pickle.load(f)
-        return img_metadata_classwise
+        coco = COCO(f"/home/eas/Enol/pycharm_projects/clipseg/third_party/Severstal/annotations_COCO_{self.split}.json")
+        return coco
 
     def build_img_metadata(self):
         img_metadata = []
@@ -82,8 +81,12 @@ class DatasetCOCO(Dataset):
         return mask
 
     def load_frame(self):
-        class_sample = np.random.choice(self.class_ids, 1, replace=False)[0]
-        query_name = np.random.choice(self.img_metadata_classwise[class_sample], 1, replace=False)[0]
+        metadata = self.img_metadata_classwise
+        query_ann_id = random.choice(metadata.getAnnIds())
+        query_sample = metadata.loadAnns(query_ann_id)[0]
+        query_class = query_sample['category_id']
+        query_name = query_sample['image_id']
+
         query_img = Image.open(os.path.join(self.base_path, query_name)).convert('RGB')
         query_mask = self.read_mask(query_name)
 
@@ -93,8 +96,10 @@ class DatasetCOCO(Dataset):
         query_mask[query_mask == class_sample + 1] = 1
 
         support_names = []
+
         while True:  # keep sampling support set if query == support
-            support_name = np.random.choice(self.img_metadata_classwise[class_sample], 1, replace=False)[0]
+            support_samles = self.img_metadata.loadAnns()
+            support_name = random.choice()
             if query_name != support_name: support_names.append(support_name)
             if len(support_names) == self.shot: break
 
