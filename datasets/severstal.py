@@ -16,7 +16,7 @@ from torchvision.transforms.transforms import Resize
 from datasets.utils import blend_image_segmentation
 from general_utils import get_from_repository
 
-COCO_CLASSES = {0: 'class_1', 1: 'class_2', 2: 'class_3', 3: 'class_4'}
+COCO_CLASSES = {1: 'class_1', 2: 'class_2', 3: 'class_3', 4: 'class_4'}
 
 
 class COCOWrapper(object):
@@ -32,18 +32,10 @@ class COCOWrapper(object):
 
         from third_party.Severstal.severstal_coco import DatasetCOCO
 
-        #get_from_repository('COCO-20i', ['COCO-20i.tar'])
+
 
         metadatapath = f'/home/eas/Enol/pycharm_projects/clipseg/third_party/Severstal/annotations_COCO_{self.split}.json'
         datapath = '/home/eas/Enol/pycharm_projects/clipseg/third_party/Severstal/train_subimages'
-        def build_img_metadata_classwise(self):
-            coco = COCO(metadatapath)
-            imgIds = coco.getImgIds()
-            img_metadata_classwise = coco.loadAnns(imgIds)
-            return img_metadata_classwise
-
-        DatasetCOCO.build_img_metadata_classwise = build_img_metadata_classwise
-        # DatasetCOCO.read_mask = read_mask
 
         mean = [0.485, 0.456, 0.406]
         std = [0.229, 0.224, 0.225]
@@ -53,7 +45,7 @@ class COCOWrapper(object):
             transforms.Normalize(mean, std)
         ])
 
-        self.coco = DatasetCOCO(datapath, transform, split,False)
+        self.coco = DatasetCOCO(datapath, transform, split,True)
 
         self.all_classes = [self.coco.class_ids]
         self.coco.base_path = datapath

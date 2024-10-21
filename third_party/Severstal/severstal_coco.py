@@ -14,20 +14,17 @@ class DatasetCOCO(Dataset):
     def __init__(self, datapath, transform, split, use_original_imgsize):
         self.split = split
         self.nclass = 4
-        self.benchmark = 'coco'
-        self.base_path = os.path.join(datapath, 'COCO2014')
+        self.benchmark = 'coco_severstal'
+        self.base_path = datapath
         self.transform = transform
         self.use_original_imgsize = use_original_imgsize
 
-        self.class_ids = self.build_class_ids()
+        self.class_ids = [1, 2, 3, 4]
         self.img_metadata_classwise = self.build_img_metadata_classwise()
-        self.img_metadata = self.build_img_metadata()
         self.len = self.__len__()
 
-
-
     def __len__(self):
-        return len(self.img_metadata)
+        return len(self.img_metadata_classwise.anns)
 
     def __getitem__(self, idx):
         # ignores idx during training & testing and perform uniform sampling over object classes to form an episode
@@ -57,59 +54,53 @@ class DatasetCOCO(Dataset):
 
         return batch
 
-    def build_class_ids(self):
-        nclass_trn = self.nclass // self.nfolds
-        class_ids_val = [self.fold + self.nfolds * v for v in range(nclass_trn)]
-        class_ids_trn = [x for x in range(self.nclass) if x not in class_ids_val]
-        class_ids = class_ids_trn if self.split == 'trn' else class_ids_val
-
-        return class_ids
 
     def build_img_metadata_classwise(self):
         coco = COCO(f"/home/eas/Enol/pycharm_projects/clipseg/third_party/Severstal/annotations_COCO_{self.split}.json")
         return coco
 
-    def build_img_metadata(self):
-        img_metadata = []
-        for k in self.img_metadata_classwise.keys():
-            img_metadata += self.img_metadata_classwise[k]
-        return sorted(list(set(img_metadata)))
-
-    def read_mask(self, name):
-        mask_path = os.path.join(self.base_path, 'annotations', name)
-        mask = torch.tensor(np.array(Image.open(mask_path[:mask_path.index('.jpg')] + '.png')))
+    def read_mask(self, rle_code):
+        binary_mask = mask_util.decode(rle_code)
+        binary_mask[binary_mask != 0] = 1
+        mask = torch.tensor(binary_mask)
         return mask
 
     def load_frame(self):
         metadata = self.img_metadata_classwise
-        query_ann_id = random.choice(metadata.getAnnIds())
-        query_sample = metadata.loadAnns(query_ann_id)[0]
-        query_class = query_sample['category_id']
-        query_name = query_sample['image_id']
+        query = random.choice(metadata)
+        class_sample = query['category_id']
+        query_name = query['image_id']
 
         query_img = Image.open(os.path.join(self.base_path, query_name)).convert('RGB')
-        query_mask = self.read_mask(query_name)
+        rle_mask = query['segmentation']
+        query_mask = self.read_mask(rle_mask)
 
         org_qry_imsize = query_img.size
+        n_samples = 0
 
-        query_mask[query_mask != class_sample + 1] = 0
-        query_mask[query_mask == class_sample + 1] = 1
+        for i, ann in enumerate(metadata.anns):
+            if ann['category_id'] == class_sample:
+                n_samples += 1
 
-        support_names = []
-
+        support_samples = []
         while True:  # keep sampling support set if query == support
-            support_samles = self.img_metadata.loadAnns()
-            support_name = random.choice()
-            if query_name != support_name: support_names.append(support_name)
-            if len(support_names) == self.shot: break
+            support = random.choice(metadata)
+            support_name = support['image_id']
+            if query_name != support_name:
+                support_samples.append(support)
+
+            if len(support_samples) == self.shot or len(support_samples) == n_samples - 1:
+                break
 
         support_imgs = []
         support_masks = []
-        for support_name in support_names:
+        support_names = []
+        for support in support_samples:
+            support_name = support['image_id']
+            support_names.append(support_name)
             support_imgs.append(Image.open(os.path.join(self.base_path, support_name)).convert('RGB'))
-            support_mask = self.read_mask(support_name)
-            support_mask[support_mask != class_sample + 1] = 0
-            support_mask[support_mask == class_sample + 1] = 1
+            support_mask_rle = support['segmentation']
+            support_mask = self.read_mask(support_mask_rle)
             support_masks.append(support_mask)
 
         return query_img, query_mask, support_imgs, support_masks, query_name, support_names, class_sample, org_qry_imsize
