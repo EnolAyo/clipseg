@@ -21,7 +21,7 @@ COCO_CLASSES = {1: 'class_1', 2: 'class_2', 3: 'class_3', 4: 'class_4'}
 
 class COCOWrapper(object):
 
-    def __init__(self, split, image_size=256, aug=None, mask='separate', negative_prob=0,
+    def __init__(self, split, image_size=256, aug=None, mask='text_and_blur3_highlight01', negative_prob=0,
                  with_class_label=False):
         super().__init__()
 
@@ -45,7 +45,7 @@ class COCOWrapper(object):
             transforms.Normalize(mean, std)
         ])
 
-        self.coco = DatasetCOCO(datapath, transform, split,True)
+        self.coco = DatasetCOCO(datapath, transform, split,3,True)
 
         self.all_classes = [self.coco.class_ids]
         self.coco.base_path = datapath

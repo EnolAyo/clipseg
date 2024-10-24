@@ -11,9 +11,10 @@ import random
 
 
 class DatasetCOCO(Dataset):
-    def __init__(self, datapath, transform, split, use_original_imgsize):
+    def __init__(self, datapath, transform, split, shot, use_original_imgsize):
         self.split = split
         self.nclass = 4
+        self.shot = shot
         self.benchmark = 'coco_severstal'
         self.base_path = datapath
         self.transform = transform
@@ -29,7 +30,7 @@ class DatasetCOCO(Dataset):
     def __getitem__(self, idx):
         # ignores idx during training & testing and perform uniform sampling over object classes to form an episode
         # (due to the large size of the COCO dataset)
-        query_img, query_mask, support_imgs, support_masks, query_name, support_names, class_sample, org_qry_imsize = self.load_frame(idx)
+        query_img, query_mask, support_imgs, support_masks, query_name, support_names, class_sample, org_qry_imsize = self.load_frame()
 
         query_img = self.transform(query_img)
         query_mask = query_mask.float()
@@ -67,7 +68,8 @@ class DatasetCOCO(Dataset):
 
     def load_frame(self):
         metadata = self.img_metadata_classwise
-        query = random.choice(metadata)
+
+        query = random.choice(metadata.anns)
         class_sample = query['category_id']
         query_name = query['image_id']
 
@@ -78,13 +80,13 @@ class DatasetCOCO(Dataset):
         org_qry_imsize = query_img.size
         n_samples = 0
 
-        for i, ann in enumerate(metadata.anns):
+        for i, ann in enumerate(metadata.anns.values()):
             if ann['category_id'] == class_sample:
                 n_samples += 1
 
         support_samples = []
         while True:  # keep sampling support set if query == support
-            support = random.choice(metadata)
+            support = random.choice(metadata.anns)
             support_name = support['image_id']
             if query_name != support_name:
                 support_samples.append(support)
