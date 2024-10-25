@@ -19,6 +19,9 @@ from torch.utils.data import DataLoader
 
 from general_utils import TrainingLogger, get_attribute, filter_args, log, training_config_from_cli_args
 
+from torch.utils.tensorboard import SummaryWriter
+writer = SummaryWriter()
+
 
 def cosine_warmup_lr(i, warmup=10, max_iter=90):
     """ Cosine LR with Warmup """
