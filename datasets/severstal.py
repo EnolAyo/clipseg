@@ -37,8 +37,8 @@ class COCOWrapper(object):
         metadatapath = f'/home/eas/Enol/pycharm_projects/clipseg/third_party/Severstal/annotations_COCO_{self.split}.json'
         datapath = '/home/eas/Enol/pycharm_projects/clipseg/third_party/Severstal/train_subimages'
 
-        mean = [0.485, 0.456, 0.406]
-        std = [0.229, 0.224, 0.225]
+        mean = [0.34388125, 0.34388125, 0.34388125]
+        std = [0.13965334, 0.13965334, 0.13965334]
         transform = transforms.Compose([
             transforms.Resize((image_size, image_size)),
             transforms.ToTensor(),
