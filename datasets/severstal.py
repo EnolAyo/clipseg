@@ -16,7 +16,7 @@ from torchvision.transforms.transforms import Resize
 from datasets.utils import blend_image_segmentation
 from general_utils import get_from_repository
 
-COCO_CLASSES = {1: 'crazing', 2: '  rolled-in scale', 3: 'scratch', 4: 'inclusion'}
+COCO_CLASSES = {1: 'crazing', 2: 'rolled-in scale', 3: 'scratch', 4: 'inclusion', 5: 'steel plate'}
 
 
 class COCOWrapper(object):
@@ -31,10 +31,6 @@ class COCOWrapper(object):
         self.split = split
 
         from third_party.Severstal.severstal_coco import DatasetCOCO
-
-
-
-        metadatapath = f'/home/eas/Enol/pycharm_projects/clipseg/third_party/Severstal/annotations_COCO_{self.split}.json'
         datapath = '/home/eas/Enol/pycharm_projects/clipseg/third_party/Severstal/train_subimages'
 
         mean = [0.34388125, 0.34388125, 0.34388125]

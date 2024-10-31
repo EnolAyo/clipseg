@@ -1,5 +1,5 @@
 configuration:
-  batch_size: 256
+  batch_size: 128
   optimizer: torch.optim.AdamW
 
   lr: 0.001

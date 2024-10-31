@@ -11,21 +11,25 @@ import random
 
 
 class DatasetCOCO(Dataset):
-    def __init__(self, datapath, transform, split, shot, use_original_imgsize):
+    def __init__(self, datapath, transform, split, shot, use_original_imgsize, random_seed=33):
         self.split = split
-        self.nclass = 4
+        self.nclass = 5
         self.shot = shot
         self.benchmark = 'coco_severstal'
         self.base_path = datapath
         self.transform = transform
         self.use_original_imgsize = use_original_imgsize
+        self.random_seed = random_seed
 
-        self.class_ids = [1, 2, 3, 4]
-        self.img_metadata_classwise = self.build_img_metadata_classwise()
+        self.class_ids = [1, 2, 3, 4, 5]
+        self.img_metadata, self.train_ids, self.val_ids = self.build_img_metadata()
         self.len = self.__len__()
 
     def __len__(self):
-        return len(self.img_metadata_classwise.anns)
+        if self.split == 'train':
+            return len(self.train_ids)
+        else:
+            return len(self.val_ids)
 
     def __getitem__(self, idx):
         # ignores idx during training & testing and perform uniform sampling over object classes to form an episode
@@ -56,9 +60,20 @@ class DatasetCOCO(Dataset):
         return batch
 
 
-    def build_img_metadata_classwise(self):
-        coco = COCO(f"/home/eas/Enol/pycharm_projects/clipseg/third_party/Severstal/annotations_COCO_{self.split}.json")
-        return coco
+    def build_img_metadata(self):
+        coco = COCO(f"/home/eas/Enol/pycharm_projects/clipseg/third_party/Severstal/annotations_COCO.json")
+        random.seed(self.random_seed)
+        split_ratio = 0.7
+        keys = list(coco.anns.keys())
+        random.shuffle(keys)
+        split_point = int(len(keys) * split_ratio)
+        keys_train = keys[:split_point]
+        train_ids = [coco.anns[i]['id'] for i in keys_train]
+        keys_val = keys[split_point:]
+        val_ids = [coco.anns[i]['id'] for i in keys_val]
+        random.seed(None)
+        return coco, train_ids, val_ids
+
 
     def read_mask(self, rle_code):
         binary_mask = mask_util.decode(rle_code)
@@ -67,9 +82,15 @@ class DatasetCOCO(Dataset):
         return mask
 
     def load_frame(self):
-        metadata = self.img_metadata_classwise
+        metadata = self.img_metadata
+        train_ids = self.train_ids
+        val_ids = self.val_ids
+        if self.split == 'train':
+            metadata = metadata.loadAnns(ids=train_ids)
+        else:
+            metadata = metadata.loadAnns(val_ids)
 
-        query = random.choice(metadata.anns)
+        query = random.choice(metadata)
         class_sample = query['category_id']
         query_name = query['image_id']
 
@@ -80,13 +101,13 @@ class DatasetCOCO(Dataset):
         org_qry_imsize = query_img.size
         n_samples = 0
 
-        for i, ann in enumerate(metadata.anns.values()):
+        for i, ann in enumerate(metadata.values()):
             if ann['category_id'] == class_sample:
                 n_samples += 1
 
         support_samples = []
         while True:  # keep sampling support set if query == support
-            support = random.choice(metadata.anns)
+            support = random.choice(metadata)
             support_name = support['image_id']
             if query_name != support_name:
                 support_samples.append(support)
