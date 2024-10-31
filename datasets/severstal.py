@@ -41,7 +41,7 @@ class COCOWrapper(object):
             transforms.Normalize(mean, std)
         ])
 
-        self.coco = DatasetCOCO(datapath, transform, split,3,True)
+        self.coco = DatasetCOCO(datapath, transform, split, True)
 
         self.all_classes = [self.coco.class_ids]
         self.coco.base_path = datapath
@@ -51,16 +51,18 @@ class COCOWrapper(object):
 
     def __getitem__(self, i):
         sample = self.coco[i]
-
-        label_name = COCO_CLASSES[int(sample['class_id'])]
+        class_id = int(sample['class_id'])
+        label_name = COCO_CLASSES[class_id]
 
         img_s, seg_s = sample['support_imgs'][0], sample['support_masks'][0]
 
-        if self.negative_prob > 0 and torch.rand(1).item() < self.negative_prob:
+        if class_id !=5 and self.negative_prob > 0 and torch.rand(1).item() < self.negative_prob:
             new_class_id = sample['class_id']
-            while new_class_id == sample['class_id']:
+            new_sample_img_id = ''
+            while new_class_id == sample['class_id'] or new_class_id == 5 or new_sample_img_id in sample.duplicates:
                 sample2 = self.coco[torch.randint(0, len(self), (1,)).item()]
                 new_class_id = sample2['class_id']
+                new_sample_img_id = sample2['query_name']
             img_s = sample2['support_imgs'][0]
             seg_s = torch.zeros_like(seg_s)
 

@@ -6,15 +6,14 @@ from torch.utils.data import Dataset
 import torch.nn.functional as F
 import torch
 import PIL.Image as Image
-import numpy as np
+from collections import Counter
 import random
 
 
 class DatasetCOCO(Dataset):
-    def __init__(self, datapath, transform, split, shot, use_original_imgsize, random_seed=33):
+    def __init__(self, datapath, transform, split, use_original_imgsize, random_seed=33):
         self.split = split
         self.nclass = 5
-        self.shot = shot
         self.benchmark = 'coco_severstal'
         self.base_path = datapath
         self.transform = transform
@@ -24,6 +23,7 @@ class DatasetCOCO(Dataset):
         self.class_ids = [1, 2, 3, 4, 5]
         self.img_metadata, self.train_ids, self.val_ids = self.build_img_metadata()
         self.len = self.__len__()
+        self.duplicates = self.find_duplicates()
 
     def __len__(self):
         if self.split == 'train':
@@ -75,6 +75,16 @@ class DatasetCOCO(Dataset):
         return coco, train_ids, val_ids
 
 
+    def find_duplicates(self):
+        id_list = []
+        for i in range(len(self.img_metadata.anns)):
+            id_list.append(self.img_metadata.anns[i]['image_id'])
+
+        counts = Counter(id_list)
+        duplicates = [item for item, frequency in counts.items() if frequency > 1]
+        return duplicates
+
+
     def read_mask(self, rle_code):
         binary_mask = mask_util.decode(rle_code)
         binary_mask[binary_mask != 0] = 1
@@ -105,15 +115,21 @@ class DatasetCOCO(Dataset):
             if ann['category_id'] == class_sample:
                 n_samples += 1
 
-        support_samples = []
-        while True:  # keep sampling support set if query == support
+        while True:
+            support_samples = []  # keep sampling support set if query == support
             support = random.choice(metadata)
             support_name = support['image_id']
-            if query_name != support_name:
-                support_samples.append(support)
+            support_class = support['category_id']
+            if class_sample in [1, 2, 3, 4]:
+                if query_name != support_name and class_sample == support_class:
+                    support_samples.append(support)
+                    break
+            else: # query with no defect
+                if query_name != support_name and class_sample in [1, 2, 3, 4]:
+                    support_samples.append(support)
+                    break
 
-            if len(support_samples) == self.shot or len(support_samples) == n_samples - 1:
-                break
+
 
         support_imgs = []
         support_masks = []
