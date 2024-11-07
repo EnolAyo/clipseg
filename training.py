@@ -22,6 +22,11 @@ from general_utils import TrainingLogger, get_attribute, filter_args, log, train
 from torch.utils.tensorboard import SummaryWriter
 writer = SummaryWriter()
 
+def dice_loss(pred, target, smooth=1):
+    pred = torch.sigmoid(pred)
+    intersection = (pred * target).sum()
+    return 1 - (2. * intersection + smooth) / (pred.sum() + target.sum() + smooth)
+
 
 def cosine_warmup_lr(i, warmup=10, max_iter=90):
     """ Cosine LR with Warmup """
@@ -51,7 +56,8 @@ def validate(model, dataset, config):
             data_x = [x.cuda() if isinstance(x, torch.Tensor) else x for x in data_x]
             data_y = [x.cuda() if isinstance(x, torch.Tensor) else x for x in data_y]
 
-            prompts = model.sample_prompts(data_x[1], prompt_list=('a photo of a {}',))
+            #prompts = model.sample_prompts(data_x[1], prompt_list=('a photo of a {}',))
+            prompts = data_x[1]
             pred, visual_q, _, _  = model(data_x[0], prompts, return_features=True)
 
             if metric_class is not None:
@@ -59,7 +65,7 @@ def validate(model, dataset, config):
 
             # pred = model(data_x[0], prompts)
             # loss = loss_fn(pred[0], data_y[0])
-            loss = loss_fn(pred, data_y[0])
+            loss = loss_fn(pred, data_y[0]) + dice_loss(pred, data_y[0])
             losses += [float(loss)]
 
             i += 1
@@ -149,7 +155,8 @@ def main():
 
                     with autocast_fn():
                         # data_x[1] = text label
-                        prompts = model.sample_prompts(data_x[1])
+                        #prompts = model.sample_prompts(data_x[1])
+                        prompts = data_x[1]
 
                         # model.clip_model()
 
@@ -193,7 +200,7 @@ def main():
 
                     pred, visual_q, _, _  = model(data_x[0].cuda(), cond, return_features=True)
 
-                    loss = loss_fn(pred, data_y[0].cuda())
+                    loss = loss_fn(pred, data_y[0].cuda()) + dice_loss(pred, data_y[0].cuda())
 
                     if torch.isnan(loss) or torch.isinf(loss):
                         # skip if loss is nan
@@ -232,7 +239,7 @@ def main():
 
                     
                 if config.checkpoint_iterations is not None and i in config.checkpoint_iterations:
-                    logger.save_weights(only_trainable=save_only_trainable, weight_file=f'weights_{i}.pth')
+                    logger.save_weights(only_trainable=save_only_trainable, weight_file='weights.pth')
 
                 
                 if val_interval is not None and i % val_interval == val_interval - 1:

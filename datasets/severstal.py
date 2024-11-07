@@ -16,13 +16,19 @@ from torchvision.transforms.transforms import Resize
 from datasets.utils import blend_image_segmentation
 from general_utils import get_from_repository
 
-COCO_CLASSES = {1: 'crazing', 2: 'rolled-in scale', 3: 'scratch', 4: 'inclusion', 5: 'steel plate'}
+#COCO_CLASSES = {1: 'crazing', 2: 'rolled-in scale', 3: 'scratch', 4: 'inclusion', 5: 'steel plate'}
+COCO_CLASSES = {1: 'network of fine, hairline cracks or fissures on the surface of the steel',
+                2: 'scale—oxides embedded into the steel plate',
+                3: 'shallow, narrow grooves or lines on the surface of the steel',
+                4: 'impurity or foreign material embedded within the steel matrix',
+                5: 'defects on a steel plate'}
+
 
 
 class COCOWrapper(object):
 
     def __init__(self, split, image_size=256, aug=None, mask='text_and_blur3_highlight01', negative_prob=0,
-                 with_class_label=False):
+                 with_class_label=True):
         super().__init__()
 
         self.mask = mask
@@ -51,20 +57,22 @@ class COCOWrapper(object):
 
     def __getitem__(self, i):
         sample = self.coco[i]
-        class_id = int(sample['class_id'])
-        label_name = COCO_CLASSES[class_id]
+        query_class = int(sample['query_class'])
+        support_class = int(sample['support_class'])
+        label_name = COCO_CLASSES[support_class]
 
         img_s, seg_s = sample['support_imgs'][0], sample['support_masks'][0]
 
-        if class_id !=5 and self.negative_prob > 0 and torch.rand(1).item() < self.negative_prob:
-            new_class_id = sample['class_id']
+        if query_class !=5 and self.negative_prob > 0 and torch.rand(1).item() < self.negative_prob:
+            new_class_id = sample['query_class']
             new_sample_img_id = ''
-            while new_class_id == sample['class_id'] or new_class_id == 5 or new_sample_img_id in sample.duplicates:
+            while new_class_id == sample['query_class'] or new_class_id == 5 or new_sample_img_id in self.coco.duplicates:
                 sample2 = self.coco[torch.randint(0, len(self), (1,)).item()]
-                new_class_id = sample2['class_id']
+                new_class_id = sample2['support_class']
                 new_sample_img_id = sample2['query_name']
             img_s = sample2['support_imgs'][0]
             seg_s = torch.zeros_like(seg_s)
+            label_name = COCO_CLASSES[int(new_class_id)]
 
         mask = self.mask
         if mask == 'separate':
@@ -84,7 +92,7 @@ class COCOWrapper(object):
             supp = label_add + blend_image_segmentation(img_s, seg_s, mode=mask)
 
         if self.with_class_label:
-            label = (torch.zeros(0), sample['class_id'],)
+            label = (torch.zeros(0), sample['query_class'],)
         else:
             label = (torch.zeros(0),)
 
