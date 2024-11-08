@@ -16,7 +16,7 @@ from tqdm import tqdm
 
 
 
-def evaluate(model, dataset):
+def evaluate(model, dataset, text_weights = 0.5):
     data_loader = torch.utils.data.DataLoader(dataset, batch_size=128, shuffle=False)
     score = [[], [], [], [], []]
     model.eval()
@@ -33,7 +33,6 @@ def evaluate(model, dataset):
             visual_s_cond, _, _ = model.visual_forward(data_x[2])
             text_cond = model.compute_conditional(prompts)
             labels = data_y[2]
-            text_weights = 0.5
             cond = text_cond * text_weights + visual_s_cond * (1 - text_weights)
 
             preds, visual_q, _, _  = model(data_x[0], cond, return_features=True)
@@ -46,6 +45,7 @@ def evaluate(model, dataset):
 
     for i, class_score in enumerate(score):
         score[i] = sum(class_score) / len(class_score)
+        print(len(class_score))
     return score
 
 import torch
@@ -87,12 +87,14 @@ def get_score(pred, target, query_class, threshold=0.5, eps=1e-6):
 
 def main():
     model = CLIPDensePredT(version='ViT-B/16', reduce_dim=64)
-    weights = '/home/eas/Enol/pycharm_projects/clipseg/logs/rd64-7K-vit16-cbh-coco-enol-5classes/weights.pth'
+    weights = '/home/eas/Enol/pycharm_projects/clipseg/logs/rd64-7K-vit16-cbh-coco-enol-5classes_no_neg/weights.pth'
     # non-strict, because we only stored decoder weights (not CLIP weights)
     model.load_state_dict(torch.load(weights, map_location=torch.device('cpu')), strict=False);
     dataset = COCOWrapper(split='test')
     model.cuda()
-    score = evaluate(model, dataset)
+    score = evaluate(model, dataset, text_weights=0)
+    print(score)
+    score = evaluate(model, dataset, text_weights=1)
     print(score)
     """
     for i in range(1,5):
